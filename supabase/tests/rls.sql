@@ -1,0 +1,16 @@
+-- Manual RLS check. Run in the Supabase SQL editor after creating two test users.
+-- Replace the UUIDs with real auth.users ids. Each block is rolled back.
+--
+-- Expected:
+-- 1. User A sees only their portfolio, transactions, and snapshots.
+-- 2. User A cannot insert a transaction into User B's portfolio.
+-- 3. The anon role cannot read portfolio tables.
+
+-- begin;
+-- select set_config('request.jwt.claims', '{"sub":"USER_A_UUID","role":"authenticated"}', true);
+-- set local role authenticated;
+-- select id, user_id from public.portfolios;
+-- select id from public.transactions;
+-- insert into public.transactions (portfolio_id, asset_id, transaction_type, quantity, price, currency, transaction_date)
+-- values ('USER_B_PORTFOLIO_UUID', 'ANY_ASSET_UUID', 'buy', 1, 1, 'EUR', current_date);
+-- rollback;
