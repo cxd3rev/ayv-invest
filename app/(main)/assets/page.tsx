@@ -1,10 +1,13 @@
+import { AssetExplorer } from "@/components/assets/AssetExplorer";
+
 export default function AssetsPage() {
   return (
-    <section>
-      <h1 className="text-3xl font-semibold tracking-tight">Assets</h1>
-      <p className="mt-4 max-w-lg text-sm leading-6 text-muted">
-        Search for stocks, ETFs, and crypto will be connected to the market-data service next.
-      </p>
-    </section>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-semibold tracking-tight">Assets</h1>
+        <p className="mt-2 text-sm text-muted">Search the market, then add a transaction to your portfolio.</p>
+      </div>
+      <AssetExplorer />
+    </div>
   );
 }
