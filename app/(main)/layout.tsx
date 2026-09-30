@@ -1,9 +1,11 @@
 import { redirect } from "next/navigation";
+import type { ReactNode } from "react";
+import { AppShell } from "@/components/navigation/AppShell";
 import { SetupGuide } from "@/components/setup/SetupGuide";
 import { createClient } from "@/lib/supabase/server";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 
-export default async function HomePage() {
+export default async function MainLayout({ children }: { children: ReactNode }) {
   if (!getSupabaseEnv()) return <SetupGuide />;
 
   const supabase = await createClient();
@@ -11,5 +13,7 @@ export default async function HomePage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  redirect(user ? "/dashboard" : "/login");
+  if (!user) redirect("/login");
+
+  return <AppShell>{children}</AppShell>;
 }
