@@ -55,5 +55,7 @@ export function formatShortDate(value: string) {
 export function assetTypeLabel(type: string) {
   if (type === "etf") return "ETF";
   if (type === "crypto") return "Crypto";
+  if (type === "index") return "Index";
+  if (type === "commodity") return "Commodity";
   return "Stock";
 }

@@ -5,20 +5,20 @@
 :root,
 .dark {
   color-scheme: dark;
-  --background: #090b10;
-  --foreground: #e7e9ee;
-  --card: #131821;
-  --card-foreground: #e7e9ee;
-  --muted: #8d95a8;
-  --border: rgba(232, 234, 239, 0.1);
+  --background: #07060c;
+  --foreground: #f3f0f7;
+  --card: #14121a;
+  --card-foreground: #f3f0f7;
+  --muted: #9b95a8;
+  --border: rgba(243, 240, 247, 0.08);
   --positive: #3dbe8c;
   --negative: #e26d7a;
-  --accent: #9aa6d6;
-  --accent-foreground: #10131a;
-  --primary: #e7e9ee;
-  --primary-foreground: #12151c;
-  --ring: rgba(154, 166, 214, 0.55);
-  --shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+  --accent: #c4b5fd;
+  --accent-foreground: #1a1228;
+  --primary: #6d4ea8;
+  --primary-foreground: #f8f5ff;
+  --ring: rgba(196, 181, 253, 0.55);
+  --shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
 }
 
 .light {
@@ -67,9 +67,16 @@ body {
 
 body {
   margin: 0;
-  background: var(--background);
+  background:
+    radial-gradient(900px 480px at 8% -10%, rgba(124, 68, 188, 0.28), transparent 58%),
+    radial-gradient(720px 420px at 100% 0%, rgba(196, 90, 170, 0.14), transparent 52%),
+    var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), sans-serif;
+}
+
+.light body {
+  background: var(--background);
 }
 
 button,

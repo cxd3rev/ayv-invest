@@ -66,6 +66,51 @@ export function TransactionsIcon(props: IconProps) {
   );
 }
 
+export function WatchIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="12" r="7.5" />
+      <path d="M12 8v4.5l3 1.5" />
+    </svg>
+  );
+}
+
+export function MarketsIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 16.5 9 11l3 3 8-8" />
+      <path d="M15 6h5v5" />
+    </svg>
+  );
+}
+export function RiskIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 3.5 19 6.5v5.2c0 4.2-2.8 7.2-7 8.8-4.2-1.6-7-4.6-7-8.8V6.5L12 3.5Z" />
+      <path d="M12 8v4.5" />
+      <path d="M12 15.5h.01" />
+    </svg>
+  );
+}
+
+export function ResearchIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M6 4.5h9.5A2.5 2.5 0 0 1 18 7v12.5H8.5A2.5 2.5 0 0 0 6 22V4.5Z" />
+      <path d="M6 17.5h12" />
+    </svg>
+  );
+}
+
+export function PlanIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M5 19.5h14" />
+      <path d="M7 16l3-6 3 3 4-7" />
+    </svg>
+  );
+}
+
 export function SettingsIcon(props: IconProps) {
   return (
     <svg {...base(props)}>

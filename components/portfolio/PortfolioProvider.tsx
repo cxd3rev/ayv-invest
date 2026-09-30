@@ -1,8 +1,9 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Notice } from "@/components/ui/Notice";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { listLocalPortfolios } from "@/lib/local/store";
 import { loadPortfolio } from "@/lib/portfolio/load";
 import type { PortfolioResult, PortfolioView } from "@/lib/portfolio/types";
 import { optionalClient } from "@/lib/supabase/client";
@@ -60,5 +61,30 @@ export function PortfolioBody({ children }: { children: (view: PortfolioView) =>
   if (state.status === "error") return <Notice>{state.message}</Notice>;
   if (!state.result.ok) return <Notice>{state.result.message}</Notice>;
 
-  return children(state.result.view);
+  return (
+    <>
+      <PaperBanner />
+      {children(state.result.view)}
+    </>
+  );
+}
+
+const NO_BOOKS: ReturnType<typeof listLocalPortfolios> = [];
+
+function PaperBanner() {
+  const books = useSyncExternalStore(
+    (callback) => {
+      window.addEventListener("ayv-portfolios", callback);
+      return () => window.removeEventListener("ayv-portfolios", callback);
+    },
+    listLocalPortfolios,
+    () => NO_BOOKS,
+  );
+  const active = books.find((book) => book.active);
+  if (!active?.simulated) return null;
+  return (
+    <p className="mb-4 rounded-2xl border border-accent/40 bg-accent/10 px-4 py-3 text-sm">
+      This is a paper portfolio. The positions are practice records, not the investments in your other portfolios.
+    </p>
+  );
 }

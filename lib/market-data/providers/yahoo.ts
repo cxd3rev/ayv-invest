@@ -5,12 +5,12 @@ import type { MarketDataProvider } from "@/lib/market-data/providers/provider";
 import {
   type AssetQuote,
   type AssetSearchResult,
-  type AssetType,
+  type SearchAssetType,
   type PriceBar,
   normalizeQuotedMoney,
 } from "@/lib/market-data/types";
 
-function mapAssetType(value: string | null): AssetType | null {
+function mapAssetType(value: string | null): SearchAssetType | null {
   switch (value) {
     case "EQUITY":
       return "stock";
@@ -18,6 +18,11 @@ function mapAssetType(value: string | null): AssetType | null {
       return "etf";
     case "CRYPTOCURRENCY":
       return "crypto";
+    case "INDEX":
+      return "index";
+    case "FUTURE":
+    case "COMMODITY":
+      return "commodity";
     default:
       return null;
   }
@@ -42,6 +47,8 @@ function readQuote(symbol: string, payload: unknown): AssetQuote | null {
   const previous =
     previousRaw == null ? null : normalizeQuotedMoney(rawCurrency, previousRaw).amount;
   const marketTime = asNumber(meta.regularMarketTime);
+  const highRaw = asNumber(meta.regularMarketDayHigh);
+  const lowRaw = asNumber(meta.regularMarketDayLow);
 
   return {
     symbol: asString(meta.symbol) ?? symbol.toUpperCase(),
@@ -52,7 +59,26 @@ function readQuote(symbol: string, payload: unknown): AssetQuote | null {
     price: price.amount,
     previousClose: previous,
     asOf: marketTime == null ? null : new Date(marketTime * 1000).toISOString(),
+    dayHigh: highRaw == null ? null : normalizeQuotedMoney(rawCurrency, highRaw).amount,
+    dayLow: lowRaw == null ? null : normalizeQuotedMoney(rawCurrency, lowRaw).amount,
+    volume: asNumber(meta.regularMarketVolume),
+    marketCap: asNumber(meta.marketCap),
+    fiftyTwoWeekHigh: (() => {
+      const high = asNumber(meta.fiftyTwoWeekHigh);
+      return high == null ? null : normalizeQuotedMoney(rawCurrency, high).amount;
+    })(),
+    fiftyTwoWeekLow: (() => {
+      const low = asNumber(meta.fiftyTwoWeekLow);
+      return low == null ? null : normalizeQuotedMoney(rawCurrency, low).amount;
+    })(),
   };
+}
+
+export async function fetchYahooSearch(query: string, newsCount: number) {
+  const url = yahooUrl(
+    `/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=0&newsCount=${newsCount}`,
+  );
+  return fetchJson(url, 120);
 }
 
 function readBars(payload: unknown, interval: "1d" | "15m"): PriceBar[] {
@@ -62,6 +88,7 @@ function readBars(payload: unknown, interval: "1d" | "15m"): PriceBar[] {
   const timestamps = asArray(result.timestamp);
   const quote = asRecord(asArray(asRecord(result.indicators)?.quote)[0]);
   const closes = asArray(quote?.close);
+  const volumes = asArray(quote?.volume);
   const meta = asRecord(result.meta);
   const currency = asString(meta?.currency) ?? "USD";
   const bars: PriceBar[] = [];
@@ -72,9 +99,11 @@ function readBars(payload: unknown, interval: "1d" | "15m"): PriceBar[] {
     if (seconds == null || close == null || close < 0) return;
     const iso = new Date(seconds * 1000).toISOString();
     const money = normalizeQuotedMoney(currency, close);
+    const volume = asNumber(volumes[index]);
     bars.push({
       time: interval === "1d" ? iso.slice(0, 10) : iso,
       close: money.amount,
+      volume: volume != null && volume >= 0 ? volume : undefined,
     });
   });
 
@@ -86,7 +115,7 @@ export const yahooProvider: MarketDataProvider = {
     const trimmed = query.trim();
     if (trimmed.length < 1) return [];
 
-    const url = yahooUrl(`/v1/finance/search?q=${encodeURIComponent(trimmed)}&quotesCount=8&newsCount=0`);
+    const url = yahooUrl(`/v1/finance/search?q=${encodeURIComponent(trimmed)}&quotesCount=12&newsCount=0`);
     const payload = asRecord(await fetchJson(url, 300));
     const results: AssetSearchResult[] = [];
 

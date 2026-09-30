@@ -1,6 +1,6 @@
 import { addDays, addMonths } from "@/lib/dates";
 
-export const HISTORY_RANGES = ["1D", "1W", "1M", "3M", "6M", "YTD", "1Y", "ALL"] as const;
+export const HISTORY_RANGES = ["1D", "1W", "1M", "3M", "6M", "YTD", "1Y", "3Y", "5Y", "ALL"] as const;
 
 export type HistoryRange = (typeof HISTORY_RANGES)[number];
 
@@ -27,6 +27,10 @@ export function rangeStart(range: HistoryRange, today: string, firstTransaction:
         return `${today.slice(0, 4)}-01-01`;
       case "1Y":
         return addMonths(today, -12);
+      case "3Y":
+        return addMonths(today, -36);
+      case "5Y":
+        return addMonths(today, -60);
       case "ALL":
         return firstTransaction;
     }

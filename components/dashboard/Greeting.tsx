@@ -13,12 +13,8 @@ function greetingLabel() {
   return "Good evening";
 }
 
-export function Greeting({ name }: { name: string }) {
+export function Greeting({ name, withName = true }: { name: string; withName?: boolean }) {
   const label = useSyncExternalStore(subscribe, greetingLabel, () => "Hello");
 
-  return (
-    <p className="text-sm text-muted">
-      {label}, {name}
-    </p>
-  );
+  return <span>{withName ? `${label}, ${name}` : label}</span>;
 }

@@ -1,67 +1,47 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { AssetSearch } from "@/components/assets/AssetSearch";
 import { AddInvestmentButton } from "@/components/portfolio/AddInvestmentModal";
 import { assetTypeLabel, formatMoney, formatPercent, formatShortDate, formatSignedMoney } from "@/lib/format";
-import { addMonths, todayISO } from "@/lib/dates";
-import { getAssetQuote, getHistoricalPrices, searchAssets } from "@/lib/market-data/marketData";
+import { displayTicker, shortAssetName } from "@/lib/market-data/identity";
+import { addDays, addMonths, todayISO } from "@/lib/dates";
+import type { SearchAssetType } from "@/lib/market-data/types";
+import { getAssetQuote, getHistoricalPrices } from "@/lib/market-data/marketData";
 import { Skeleton } from "@/components/ui/Skeleton";
-
-type SearchResult = {
-  symbol: string;
-  name: string;
-  assetType: "stock" | "etf" | "crypto";
-  exchange: string | null;
-  currency: string | null;
-};
 
 type Quote = {
   symbol: string;
   name: string;
-  assetType: "stock" | "etf" | "crypto";
+  assetType: SearchAssetType;
   exchange: string | null;
   currency: string;
   price: number;
   previousClose: number | null;
+  dayHigh: number | null;
+  dayLow: number | null;
+  volume: number | null;
+  marketCap: number | null;
+  asOf: string | null;
 };
 
-const fieldClass =
-  "w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-accent";
-
 export function AssetExplorer() {
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResult[]>([]);
-  const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selected, setSelected] = useState<string | null>(null);
+  const urlSymbol = useSyncExternalStore(
+    (callback) => {
+      window.addEventListener("popstate", callback);
+      return () => window.removeEventListener("popstate", callback);
+    },
+    () => new URLSearchParams(window.location.search).get("symbol"),
+    () => null,
+  );
+  const [picked, setPicked] = useState<string | null>(null);
+  const selected = picked ?? urlSymbol;
   const [quote, setQuote] = useState<Quote | null>(null);
-  const [points, setPoints] = useState<{ date: string; value: number }[] | null>(null);
+  const [points, setPoints] = useState<{ date: string; value: number; volume?: number }[] | null>(null);
+  const [range, setRange] = useState<"1D" | "1W" | "1M" | "3M" | "6M" | "YTD" | "1Y" | "5Y" | "MAX">("6M");
   const [loadingDetail, setLoadingDetail] = useState(false);
-
-  useEffect(() => {
-    const trimmed = query.trim();
-    if (trimmed.length < 1) return;
-    let cancelled = false;
-    const timer = window.setTimeout(() => {
-      setSearching(true);
-      setError(null);
-      searchAssets(trimmed)
-        .then((nextResults) => {
-          if (!cancelled) setResults(nextResults);
-        })
-        .catch(() => {
-          if (!cancelled) setError("Unable to load market data.");
-        })
-        .finally(() => {
-          if (!cancelled) setSearching(false);
-        });
-    }, 300);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [query]);
 
   useEffect(() => {
     if (!selected) return;
@@ -71,15 +51,16 @@ export function AssetExplorer() {
       setQuote(null);
       setPoints(null);
       const today = todayISO();
+      const from = range === "1D" ? addDays(today, -1) : range === "1W" ? addDays(today, -7) : range === "1M" ? addMonths(today, -1) : range === "3M" ? addMonths(today, -3) : range === "6M" ? addMonths(today, -6) : range === "YTD" ? `${today.slice(0, 4)}-01-01` : range === "1Y" ? addMonths(today, -12) : range === "5Y" ? addMonths(today, -60) : "2000-01-01";
       Promise.all([
         getAssetQuote(selected),
-        getHistoricalPrices(selected, { interval: "1d", from: addMonths(today, -6), to: today }),
+        getHistoricalPrices(selected, { interval: range === "1D" ? "15m" : "1d", from, to: today }),
       ])
         .then(([nextQuote, bars]) => {
           if (cancelled) return;
           if (!nextQuote) throw new Error("Asset not found.");
           setQuote(nextQuote);
-          setPoints(bars.map((point) => ({ date: point.time, value: point.close })));
+          setPoints(bars.map((point) => ({ date: point.time, value: point.close, volume: point.volume })));
         })
         .catch((fetchError: unknown) => {
           if (cancelled) return;
@@ -93,7 +74,7 @@ export function AssetExplorer() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [selected]);
+  }, [selected, range]);
 
   const change =
     quote?.previousClose != null && quote.previousClose !== 0
@@ -103,31 +84,16 @@ export function AssetExplorer() {
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
       <section>
-        <label className="block text-sm">
-          <span className="mb-1.5 block text-muted">Search stocks, ETFs, and crypto</span>
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="NVIDIA, AAPL, Bitcoin" className={fieldClass} />
-        </label>
-        {searching ? <p className="mt-4 text-sm text-muted">Searching...</p> : null}
+        <AssetSearch
+          onSelect={(result) => {
+            setError(null);
+            setPicked(result.symbol);
+            const url = new URL(window.location.href);
+            url.searchParams.set("symbol", result.symbol);
+            window.history.replaceState(null, "", url);
+          }}
+        />
         {error ? <p className="mt-4 text-sm text-negative">{error}</p> : null}
-        <ul className="mt-4 space-y-2">
-          {results.map((result) => (
-            <li key={result.symbol}>
-              <button
-                type="button"
-                onClick={() => setSelected(result.symbol)}
-                className={`w-full rounded-xl border px-3 py-3 text-left transition-colors ${
-                  selected === result.symbol ? "border-accent bg-foreground/5" : "border-border hover:bg-foreground/5"
-                }`}
-              >
-                <span className="block font-medium">{result.name}</span>
-                <span className="mt-1 block text-xs text-muted">
-                  {result.symbol} · {assetTypeLabel(result.assetType)}
-                  {result.exchange ? ` · ${result.exchange}` : ""}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
       </section>
 
       <section className="rounded-2xl border border-border bg-card p-5">
@@ -135,8 +101,8 @@ export function AssetExplorer() {
         {loadingDetail ? <Skeleton className="h-64" /> : null}
         {quote && !loadingDetail ? (
           <div>
-            <p className="text-xs tracking-wide text-muted">{quote.symbol}</p>
-            <h2 className="mt-1 text-2xl font-semibold tracking-tight">{quote.name}</h2>
+            <p className="text-xs tracking-wide text-muted">{displayTicker(quote.symbol, quote.assetType)}</p>
+            <h2 className="mt-1 text-2xl font-semibold tracking-tight" title={quote.name}>{shortAssetName(quote.name)}</h2>
             <p className="mt-1 text-sm text-muted">
               {assetTypeLabel(quote.assetType)}
               {quote.exchange ? ` · ${quote.exchange}` : ""}
@@ -147,7 +113,21 @@ export function AssetExplorer() {
                 ? "Daily change unavailable"
                 : `${formatSignedMoney(quote.price - quote.previousClose, quote.currency)} today (${formatPercent(change)})`}
             </p>
-            <p className="mt-4 text-xs text-muted">Market data may be delayed. This is the listing price, not a recommendation.</p>
+            <p className="mt-4 text-xs text-muted">
+              {quote.asOf ? `Last updated ${new Date(quote.asOf).toLocaleString()}. ` : "Update time unavailable. "}
+              Market data may be delayed. Listing id {quote.symbol}. This is not a recommendation.
+            </p>
+            <dl className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
+              <div><dt className="text-xs text-muted">Day high</dt><dd className="mt-1">{quote.dayHigh == null ? "N/A" : formatMoney(quote.dayHigh, quote.currency)}</dd></div>
+              <div><dt className="text-xs text-muted">Day low</dt><dd className="mt-1">{quote.dayLow == null ? "N/A" : formatMoney(quote.dayLow, quote.currency)}</dd></div>
+              <div><dt className="text-xs text-muted">Volume</dt><dd className="mt-1">{quote.volume == null ? "N/A" : quote.volume.toLocaleString("en-IE")}</dd></div>
+              <div><dt className="text-xs text-muted">Market cap</dt><dd className="mt-1">{quote.marketCap == null ? "N/A" : quote.marketCap.toLocaleString("en-IE")}</dd></div>
+            </dl>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {(["1D", "1W", "1M", "3M", "6M", "YTD", "1Y", "5Y", "MAX"] as const).map((item) => (
+                <button key={item} type="button" onClick={() => setRange(item)} className={`rounded-full border px-3 py-1 text-xs ${range === item ? "border-accent" : "border-border text-muted"}`}>{item}</button>
+              ))}
+            </div>
             {points && points.length > 1 ? (
               <div className="mt-6 h-56">
                 <ResponsiveContainer width="100%" height="100%">
@@ -158,11 +138,12 @@ export function AssetExplorer() {
                     <Tooltip
                       content={({ active, payload }) => {
                         if (!active || !payload?.length) return null;
-                        const point = payload[0].payload as { date: string; value: number };
+                        const point = payload[0].payload as { date: string; value: number; volume?: number };
                         return (
                           <div className="rounded-xl border border-border bg-background px-3 py-2 text-sm">
                             <p>{formatShortDate(point.date)}</p>
                             <p className="numeric mt-1">{formatMoney(point.value, quote.currency)}</p>
+                            {point.volume != null ? <p className="mt-1 text-xs text-muted">Volume {point.volume.toLocaleString("en-IE")}</p> : null}
                           </div>
                         );
                       }}

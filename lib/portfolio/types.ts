@@ -63,6 +63,7 @@ export type PortfolioMetrics = {
   returnPct: number | null;
   dayChange: number | null;
   dayChangePct: number | null;
+  realizedPl: number | null;
   holdingsCount: number;
   transactionCount: number;
   largestHolding: { name: string; percent: number } | null;

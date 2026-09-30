@@ -1,23 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AssetSearch } from "@/components/assets/AssetSearch";
 import { createTransaction } from "@/lib/actions/transactions";
 import { usePortfolio } from "@/components/portfolio/PortfolioProvider";
 import { assetTypeLabel, formatMoney } from "@/lib/format";
-import { searchAssets, getAssetQuote } from "@/lib/market-data/marketData";
-import { CURRENCIES } from "@/lib/portfolio/validation";
+import { displayTicker, shortAssetName } from "@/lib/market-data/identity";
+import { getAssetQuote } from "@/lib/market-data/marketData";
+import type { AssetSearchResult } from "@/lib/market-data/types";
+import { CURRENCIES, isAssetType } from "@/lib/portfolio/validation";
 
-type SearchResult = {
+type Quote = {
   symbol: string;
   name: string;
   assetType: "stock" | "etf" | "crypto";
   exchange: string | null;
-  currency: string | null;
-};
-
-type Quote = SearchResult & {
-  price: number;
   currency: string;
+  price: number;
 };
 
 const fieldClass =
@@ -27,7 +26,7 @@ export function AddInvestmentButton({
   initialAsset,
   label = "+ Add Investment",
 }: {
-  initialAsset?: SearchResult;
+  initialAsset?: AssetSearchResult;
   label?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -51,14 +50,10 @@ export function AddInvestmentModal({
   initialAsset,
 }: {
   onClose: () => void;
-  initialAsset?: SearchResult;
+  initialAsset?: AssetSearchResult;
 }) {
-  const { reload } = usePortfolio();
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResult[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
-  const [selected, setSelected] = useState<SearchResult | null>(initialAsset ?? null);
+  const { reload, state } = usePortfolio();
+  const [selected, setSelected] = useState<AssetSearchResult | null>(initialAsset ?? null);
   const [quote, setQuote] = useState<Quote | null>(null);
   const [quoteError, setQuoteError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -73,16 +68,23 @@ export function AddInvestmentModal({
   }, [onClose]);
 
   useEffect(() => {
-    if (!selected) return;
+    if (!selected || !isAssetType(selected.assetType)) return;
     let cancelled = false;
     getAssetQuote(selected.symbol)
       .then((nextQuote) => {
         if (cancelled) return;
-        if (!nextQuote) {
+        if (!nextQuote || !isAssetType(nextQuote.assetType)) {
           setQuoteError("Unable to load market data.");
           return;
         }
-        setQuote(nextQuote);
+        setQuote({
+          symbol: nextQuote.symbol,
+          name: nextQuote.name,
+          assetType: nextQuote.assetType,
+          exchange: nextQuote.exchange,
+          currency: nextQuote.currency,
+          price: nextQuote.price,
+        });
       })
       .catch(() => {
         if (!cancelled) setQuoteError("Unable to load market data.");
@@ -92,36 +94,9 @@ export function AddInvestmentModal({
     };
   }, [selected]);
 
-  useEffect(() => {
-    if (selected) return;
-    const trimmed = query.trim();
-    if (trimmed.length < 1) return;
-
-    let cancelled = false;
-    const timer = window.setTimeout(() => {
-      setSearching(true);
-      setSearchError(null);
-      searchAssets(trimmed)
-        .then((nextResults) => {
-          if (!cancelled) setResults(nextResults);
-        })
-        .catch(() => {
-          if (!cancelled) setSearchError("Unable to load market data.");
-        })
-        .finally(() => {
-          if (!cancelled) setSearching(false);
-        });
-    }, 300);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [query, selected]);
-
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!selected) return;
+    if (!selected || !isAssetType(selected.assetType)) return;
     setSaving(true);
     setFormError(null);
     const formData = new FormData(event.currentTarget);
@@ -139,6 +114,12 @@ export function AddInvestmentModal({
   }
 
   const today = new Date().toISOString().slice(0, 10);
+  const canHold = selected != null && isAssetType(selected.assetType);
+  const alreadyHeld =
+    selected != null &&
+    state.status === "ready" &&
+    state.result.ok &&
+    state.result.view.holdings.some((holding) => holding.symbol.toUpperCase() === selected.symbol.toUpperCase());
 
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/50 p-3 sm:items-center" role="presentation">
@@ -160,22 +141,28 @@ export function AddInvestmentModal({
         {selected ? (
           <form onSubmit={onSubmit} className="mt-5 space-y-4">
             <div>
-              <p className="font-medium">{selected.name}</p>
+              <p className="font-medium" title={selected.name}>{shortAssetName(selected.name)}</p>
               <p className="text-sm text-muted">
-                {selected.symbol} · {assetTypeLabel(selected.assetType)}
+                {displayTicker(selected.symbol, selected.assetType)} · {assetTypeLabel(selected.assetType)}
                 {selected.exchange ? ` · ${selected.exchange}` : ""}
               </p>
-              <button type="button" onClick={() => { setSelected(null); setQuote(null); }} className="mt-2 text-sm text-muted underline-offset-4 hover:underline">
+              {quote ? (
+                <p className="mt-3 text-sm">
+                  <span className="text-muted">Current price: </span>
+                  <span className="numeric">{formatMoney(quote.price, quote.currency)}</span>
+                  <span className="text-muted"> · {quote.currency}</span>
+                </p>
+              ) : null}
+              {quoteError ? <p className="mt-3 text-sm text-muted">Live price is unavailable. Enter the price you paid.</p> : null}
+              {alreadyHeld ? (
+                <p className="mt-3 text-sm text-muted">You already hold this asset. Saving adds another transaction to the same position.</p>
+              ) : null}
+              <button type="button" onClick={() => { setSelected(null); setQuote(null); setQuoteError(null); }} className="mt-2 text-sm text-muted underline-offset-4 hover:underline">
                 Choose a different asset
               </button>
             </div>
-            {quote ? (
-              <p className="text-sm text-muted">
-                Latest market price: {formatMoney(quote.price, quote.currency)}. Enter the price you paid.
-              </p>
-            ) : null}
-            {quoteError ? <p className="text-sm text-muted">Live price is unavailable. Enter the price you paid.</p> : null}
-
+            {canHold ? (
+              <>
             <fieldset>
               <legend className="mb-1.5 text-sm text-muted">Transaction type</legend>
               <div className="grid grid-cols-2 gap-2">
@@ -216,65 +203,16 @@ export function AddInvestmentModal({
             </label>
             {formError ? <p className="text-sm text-negative">{formError}</p> : null}
             <button type="submit" disabled={saving} className="w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-60">
-              {saving ? "Saving..." : "Save transaction"}
+              {saving ? "Saving..." : "Add to portfolio"}
             </button>
+              </>
+            ) : (
+              <p className="text-sm text-muted">This listing can be looked up, but only stocks, ETFs, and crypto are added to the portfolio.</p>
+            )}
           </form>
         ) : (
           <div className="mt-5">
-            <label className="block text-sm">
-              <span className="mb-1.5 block text-muted">Search asset</span>
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="NVIDIA, BTC, Vanguard FTSE All-World"
-                className={fieldClass}
-                autoFocus
-              />
-            </label>
-            {searching ? <p className="mt-4 text-sm text-muted">Searching...</p> : null}
-            {searchError ? <p className="mt-4 text-sm text-muted">Search is unavailable right now. You can still add a symbol yourself.</p> : null}
-            {/^[A-Za-z0-9.^=-]{1,32}$/.test(query.trim()) ? (
-              <div className="mt-4">
-                <p className="text-sm text-muted">Add {query.trim().toUpperCase()} yourself</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {(["stock", "etf", "crypto"] as const).map((type) => (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={() =>
-                        setSelected({
-                          symbol: query.trim().toUpperCase(),
-                          name: query.trim().toUpperCase(),
-                          assetType: type,
-                          exchange: null,
-                          currency: "EUR",
-                        })
-                      }
-                      className="rounded-xl border border-border px-3 py-2 text-sm"
-                    >
-                      {assetTypeLabel(type)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-            <ul className="mt-4 space-y-2">
-              {results.map((result) => (
-                <li key={result.symbol}>
-                  <button
-                    type="button"
-                    onClick={() => setSelected(result)}
-                    className="w-full rounded-xl border border-border px-3 py-3 text-left transition-colors hover:bg-foreground/5"
-                  >
-                    <span className="block font-medium">{result.name}</span>
-                    <span className="mt-1 block text-xs text-muted">
-                      {result.symbol} · {assetTypeLabel(result.assetType)}
-                      {result.exchange ? ` · ${result.exchange}` : ""}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <AssetSearch autoFocus inputId="add-investment-search" onSelect={(result) => { setQuote(null); setQuoteError(null); setSelected(result); }} />
           </div>
         )}
       </div>

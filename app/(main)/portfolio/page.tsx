@@ -5,8 +5,10 @@ import { HoldingsTable } from "@/components/portfolio/HoldingsTable";
 import { Money, SignedMoney } from "@/components/portfolio/Money";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Notice } from "@/components/ui/Notice";
-import { formatMoney, formatPercent } from "@/lib/format";
+import { formatMoney, formatPercent, formatSignedMoney } from "@/lib/format";
 import { PortfolioBody } from "@/components/portfolio/PortfolioProvider";
+import { PortfolioSwitcher } from "@/components/portfolio/PortfolioSwitcher";
+import { PortfolioTransfer } from "@/components/portfolio/PortfolioTransfer";
 
 export default function PortfolioPage() {
   return (
@@ -20,6 +22,8 @@ export default function PortfolioPage() {
         </div>
         <AddInvestmentButton />
       </div>
+      <PortfolioSwitcher />
+      <PortfolioTransfer />
       {view.warnings.map((warning) => (
         <Notice key={warning}>{warning}</Notice>
       ))}
@@ -31,7 +35,7 @@ export default function PortfolioPage() {
         />
       ) : (
         <>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <article className="rounded-2xl border border-border bg-card p-4">
               <p className="text-xs text-muted">Total value</p>
               <p className="mt-2 text-xl">
@@ -43,10 +47,14 @@ export default function PortfolioPage() {
               <p className="numeric mt-2 text-xl">{formatMoney(view.metrics.totalInvested ?? 0)}</p>
             </article>
             <article className="rounded-2xl border border-border bg-card p-4">
-              <p className="text-xs text-muted">Total return</p>
+              <p className="text-xs text-muted">Unrealized P&L</p>
               <p className="mt-2 text-xl">
                 <SignedMoney value={view.metrics.profitLoss} percent={view.metrics.returnPct} />
               </p>
+            </article>
+            <article className="rounded-2xl border border-border bg-card p-4">
+              <p className="text-xs text-muted">Realized P&L</p>
+              <p className="numeric mt-2 text-xl">{view.metrics.realizedPl == null ? "—" : formatSignedMoney(view.metrics.realizedPl)}</p>
             </article>
           </div>
           <HoldingsTable holdings={view.holdings} />

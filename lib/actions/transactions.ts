@@ -37,7 +37,7 @@ export async function createTransaction(formData: FormData): Promise<ActionResul
     }
 
     const requestedType = String(formData.get("assetType") ?? "");
-    const assetType: AssetType = quote?.assetType ?? (isAssetType(requestedType) ? requestedType : "stock");
+    const assetType: AssetType = quote && isAssetType(quote.assetType) ? quote.assetType : (isAssetType(requestedType) ? requestedType : "stock");
     const name = quote?.name ?? (String(formData.get("assetName") ?? "").trim() || parsed.value.symbol);
 
     const input = {
@@ -229,7 +229,7 @@ export async function loadSampleTransactions(): Promise<ActionResult> {
           portfolioId: account.portfolioId,
           symbol: quote?.symbol ?? sample.symbol,
           name: quote?.name ?? sample.symbol,
-          assetType: quote?.assetType ?? (sample.symbol.includes("BTC") || sample.symbol.includes("ETH") ? "crypto" : sample.symbol.includes(".") ? "etf" : "stock"),
+          assetType: quote && isAssetType(quote.assetType) ? quote.assetType : (sample.symbol.includes("BTC") || sample.symbol.includes("ETH") ? "crypto" : sample.symbol.includes(".") ? "etf" : "stock"),
           exchange: quote?.exchange ?? null,
           assetCurrency: quote?.currency ?? sample.currency,
           type: sample.type,
@@ -243,7 +243,7 @@ export async function loadSampleTransactions(): Promise<ActionResult> {
       : insertLocalTransaction({
           symbol: sample.symbol,
           name: quote?.name ?? sample.symbol,
-          assetType: quote?.assetType ?? (sample.symbol.includes("BTC") || sample.symbol.includes("ETH") ? "crypto" : sample.symbol.includes(".") ? "etf" : "stock"),
+          assetType: quote && isAssetType(quote.assetType) ? quote.assetType : (sample.symbol.includes("BTC") || sample.symbol.includes("ETH") ? "crypto" : sample.symbol.includes(".") ? "etf" : "stock"),
           exchange: quote?.exchange ?? null,
           type: sample.type,
           quantity: sample.quantity,

@@ -265,6 +265,14 @@ export async function loadPortfolio(supabase: SupabaseClient | null): Promise<Po
       };
     });
 
+    const realizedPl =
+      converted.length === 0 && stored.length > 0
+        ? null
+        : [...positions.values()].reduce((sum, position) => sum + position.realizedPl, 0);
+    if (failedAssets.size > 0) {
+      warnings.push("Realized profit excludes trades that could not be converted to EUR.");
+    }
+
     const knownValue = holdings.reduce((sum, holding) => sum + (holding.currentValue ?? 0), 0);
     for (const holding of holdings) {
       holding.portfolioPercent =
@@ -352,6 +360,7 @@ export async function loadPortfolio(supabase: SupabaseClient | null): Promise<Po
           returnPct: profitLoss == null || totalInvested <= 0 ? null : (profitLoss / totalInvested) * 100,
           dayChange,
           dayChangePct: previousValue != null && previousValue !== 0 && dayChange != null ? (dayChange / previousValue) * 100 : null,
+          realizedPl,
           holdingsCount: holdings.length,
           transactionCount: stored.length,
           largestHolding:
@@ -395,6 +404,7 @@ function emptyView(
       returnPct: null,
       dayChange: null,
       dayChangePct: null,
+      realizedPl: 0,
       holdingsCount: 0,
       transactionCount: 0,
       largestHolding: null,
