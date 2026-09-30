@@ -112,6 +112,8 @@ Deploy the Next.js app to Vercel. Set the same environment variables in the Verc
 
 Run the SQL migration on the production Supabase project before inviting users.
 
+GitHub Pages cannot host AYV Invest. Pages only publishes static files. This app needs a server for accounts, transactions, and live prices. The Pages workflow that forces a static export fails on routes such as `/api/market/quote`. Use Vercel for the live site. GitHub remains the place for the source code.
+
 ## GitHub
 
 The repository is `ayv-invest`. Do not commit `.env.local`, API keys, or the Supabase service-role key.
