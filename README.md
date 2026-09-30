@@ -108,9 +108,9 @@ Market data may be delayed. The product does not claim the prices are real-time.
 
 ## Deployment
 
-GitHub Pages publishes the site at [https://cxd3rev.github.io/ayv-invest/](https://cxd3rev.github.io/ayv-invest/). A push to `main` builds a static export and deploys the `out` folder. The public homepage is a normal HTML page, with `robots.txt` and `sitemap.xml`, so a search engine can request it. Search engines decide if and when they list it.
+GitHub Pages publishes the site at [https://cxd3rev.github.io/ayv-invest/](https://cxd3rev.github.io/ayv-invest/). A push to `main` builds a static export and deploys the `out` folder. Without Supabase, the portfolio is saved in the browser so the app can be used immediately. Search engines can request the public page; they decide if and when they list it.
 
-Sign-in still needs your Supabase project. Add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` as GitHub Actions variables, then push again so the build can include them. Add `https://cxd3rev.github.io/ayv-invest/auth/callback/` to the Supabase Auth redirect URLs. Run the SQL migration before inviting users. Do not add the service-role key.
+Sign-in can be added later. Add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` as GitHub Actions variables, then push again. Add `https://cxd3rev.github.io/ayv-invest/auth/callback/` to the Supabase Auth redirect URLs. Run the SQL migration before inviting users. Do not add the service-role key.
 
 The same app can run as a server with `npm run dev` or on Vercel. Leave `GITHUB_PAGES` unset for that build. Set the same public environment variables there.
 

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { todayISO } from "@/lib/dates";
+import { localAccount, readLocalPortfolio } from "@/lib/local/store";
 import { getAssetQuotes, getExchangeRateSeries } from "@/lib/market-data/marketData";
 import { latestRate, rateOn } from "@/lib/market-data/fx";
 import { MarketDataError, normalizeQuotedMoney, type AssetQuote, type AssetType } from "@/lib/market-data/types";
@@ -183,12 +184,12 @@ function transactionViews(transactions: StoredTransaction[]): TransactionView[] 
     });
 }
 
-export async function loadPortfolio(supabase: SupabaseClient): Promise<PortfolioResult> {
+export async function loadPortfolio(supabase: SupabaseClient | null): Promise<PortfolioResult> {
   try {
-    const account = await getAccount(supabase);
+    const account = supabase ? await getAccount(supabase) : localAccount();
     if (!account) return { ok: false, message: "Please log in." };
 
-    const stored = await loadTransactions(supabase, account.portfolioId);
+    const stored = supabase ? await loadTransactions(supabase, account.portfolioId) : readLocalPortfolio().transactions;
     const transactions = transactionViews(stored);
 
     if (stored.length === 0) {
@@ -319,7 +320,7 @@ export async function loadPortfolio(supabase: SupabaseClient): Promise<Portfolio
       })
       .filter((slice) => slice.value > 0);
 
-    if (valuesComplete && totalValue != null) {
+    if (supabase && valuesComplete && totalValue != null) {
       await supabase.from("portfolio_snapshots").upsert(
         {
           portfolio_id: account.portfolioId,
@@ -405,10 +406,10 @@ function emptyView(
   };
 }
 
-export async function getStoredPortfolio(supabase: SupabaseClient) {
-  const account = await getAccount(supabase);
+export async function getStoredPortfolio(supabase: SupabaseClient | null) {
+  const account = supabase ? await getAccount(supabase) : localAccount();
   if (!account) return null;
-  const stored = await loadTransactions(supabase, account.portfolioId);
+  const stored = supabase ? await loadTransactions(supabase, account.portfolioId) : readLocalPortfolio().transactions;
   const prepared = await convertToPortfolioCurrency(stored);
   return { account, stored, ...prepared };
 }

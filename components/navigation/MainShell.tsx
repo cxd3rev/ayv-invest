@@ -16,7 +16,7 @@ type Gate = "loading" | "setup" | "database" | "ready";
 export function MainShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const configured = Boolean(getSupabaseEnv());
-  const [gate, setGate] = useState<Gate>(configured ? "loading" : "setup");
+  const [gate, setGate] = useState<Gate>(configured ? "loading" : "ready");
   const [theme, setTheme] = useState<Account["theme"]>("dark");
 
   useEffect(() => {
@@ -71,7 +71,14 @@ export function MainShell({ children }: { children: ReactNode }) {
   return (
     <AppShell>
       <ThemeSync theme={theme} />
-      <PortfolioProvider>{children}</PortfolioProvider>
+      <PortfolioProvider>
+        {configured ? null : (
+          <p className="mb-4 text-xs leading-5 text-muted">
+            Your portfolio is saved in this browser. You can connect Supabase later.
+          </p>
+        )}
+        {children}
+      </PortfolioProvider>
     </AppShell>
   );
 }

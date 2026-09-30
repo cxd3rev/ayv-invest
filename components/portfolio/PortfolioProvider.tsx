@@ -5,7 +5,7 @@ import { Notice } from "@/components/ui/Notice";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { loadPortfolio } from "@/lib/portfolio/load";
 import type { PortfolioResult, PortfolioView } from "@/lib/portfolio/types";
-import { createClient } from "@/lib/supabase/client";
+import { optionalClient } from "@/lib/supabase/client";
 
 type PortfolioState =
   | { status: "loading" }
@@ -20,7 +20,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    loadPortfolio(createClient())
+    loadPortfolio(optionalClient())
       .then((result) => {
         if (!cancelled) setState({ status: "ready", result });
       })

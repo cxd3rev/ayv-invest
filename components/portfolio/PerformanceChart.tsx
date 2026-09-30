@@ -5,7 +5,7 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import { formatLongDate, formatMoney, formatShortDate } from "@/lib/format";
 import { getPortfolioHistory } from "@/lib/portfolio/history";
 import { HISTORY_RANGES, type HistoryRange } from "@/lib/portfolio/ranges";
-import { createClient } from "@/lib/supabase/client";
+import { optionalClient } from "@/lib/supabase/client";
 import { Skeleton } from "@/components/ui/Skeleton";
 
 type Point = { date: string; value: number };
@@ -22,7 +22,7 @@ export function PerformanceChart() {
     const timer = window.setTimeout(() => {
       setLoading(true);
       setError(null);
-      getPortfolioHistory(createClient(), range)
+      getPortfolioHistory(optionalClient(), range)
         .then((body) => {
           if (cancelled) return;
           if (!body.ok) {

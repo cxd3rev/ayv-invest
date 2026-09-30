@@ -1,7 +1,9 @@
 "use client";
 
 import { getAccount } from "@/lib/portfolio/account";
+import { saveLocalSettings } from "@/lib/local/store";
 import { createClient } from "@/lib/supabase/client";
+import { getSupabaseEnv } from "@/lib/supabase/env";
 
 export type SettingsResult = { ok: true } | { ok: false; error: string };
 
@@ -23,6 +25,11 @@ export async function updateSettings(formData: FormData): Promise<SettingsResult
   }
 
   try {
+    if (!getSupabaseEnv()) {
+      saveLocalSettings(displayName, theme);
+      return { ok: true };
+    }
+
     const supabase = createClient();
     const account = await getAccount(supabase);
     if (!account) return { ok: false, error: "Please log in." };

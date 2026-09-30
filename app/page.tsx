@@ -14,22 +14,26 @@ export default function HomePage() {
       <p className="mt-4 max-w-xl text-sm leading-6 text-muted">
         AYV Invest keeps the stocks, ETFs, and crypto you enter, then shows value, profit, and allocation in euros. It does not recommend what to buy or sell. Market data may be delayed.
       </p>
-      {configured ? (
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Link href="/login" className="rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground">
-            Log in
+      <div className="mt-8 flex flex-wrap gap-3">
+        {configured ? (
+          <>
+            <Link href="/login" className="rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground">
+              Log in
+            </Link>
+            <Link href="/signup" className="rounded-xl border border-border px-4 py-2.5 text-sm font-medium">
+              Create an account
+            </Link>
+          </>
+        ) : (
+          <Link href="/dashboard" className="rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground">
+            Open AYV Invest
           </Link>
-          <Link href="/signup" className="rounded-xl border border-border px-4 py-2.5 text-sm font-medium">
-            Create an account
-          </Link>
-        </div>
-      ) : (
-        <section className="mt-10 max-w-xl rounded-2xl border border-border bg-card p-5">
-          <h2 className="text-lg font-semibold tracking-tight">Accounts are not connected on this build</h2>
-          <p className="mt-2 text-sm leading-6 text-muted">
-            This page is live. Sign-in uses your own Supabase project. Add the public project URL and anon key to the GitHub Actions variables, run the SQL migration, and publish again. The service-role key is not used.
-          </p>
-        </section>
+        )}
+      </div>
+      {configured ? null : (
+        <p className="mt-4 max-w-xl text-sm leading-6 text-muted">
+          You can use the portfolio now. What you add stays in this browser until Supabase is connected.
+        </p>
       )}
     </main>
   );

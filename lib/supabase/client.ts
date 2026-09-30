@@ -11,3 +11,7 @@ export function createClient() {
 
   return createBrowserClient(env.url, env.anonKey);
 }
+
+export function optionalClient() {
+  return getSupabaseEnv() ? createClient() : null;
+}

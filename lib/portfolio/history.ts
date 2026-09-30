@@ -6,7 +6,7 @@ import { buildPortfolioHistory, quantityAt } from "@/lib/portfolio/calculations"
 import { getStoredPortfolio } from "@/lib/portfolio/load";
 import { isHistoryRange, rangeStart, type HistoryRange } from "@/lib/portfolio/ranges";
 
-export async function getPortfolioHistory(supabase: SupabaseClient, rangeInput: string) {
+export async function getPortfolioHistory(supabase: SupabaseClient | null, rangeInput: string) {
   if (!isHistoryRange(rangeInput)) {
     return { ok: false as const, message: "Choose a valid time range." };
   }

@@ -126,6 +126,8 @@ export function AddInvestmentModal({
     setFormError(null);
     const formData = new FormData(event.currentTarget);
     formData.set("symbol", selected.symbol);
+    formData.set("assetName", selected.name);
+    formData.set("assetType", selected.assetType);
     const result = await createTransaction(formData);
     setSaving(false);
     if (!result.ok) {
@@ -172,7 +174,7 @@ export function AddInvestmentModal({
                 Latest market price: {formatMoney(quote.price, quote.currency)}. Enter the price you paid.
               </p>
             ) : null}
-            {quoteError ? <p className="text-sm text-negative">{quoteError}</p> : null}
+            {quoteError ? <p className="text-sm text-muted">Live price is unavailable. Enter the price you paid.</p> : null}
 
             <fieldset>
               <legend className="mb-1.5 text-sm text-muted">Transaction type</legend>
@@ -230,7 +232,32 @@ export function AddInvestmentModal({
               />
             </label>
             {searching ? <p className="mt-4 text-sm text-muted">Searching...</p> : null}
-            {searchError ? <p className="mt-4 text-sm text-negative">{searchError}</p> : null}
+            {searchError ? <p className="mt-4 text-sm text-muted">Search is unavailable right now. You can still add a symbol yourself.</p> : null}
+            {/^[A-Za-z0-9.^=-]{1,32}$/.test(query.trim()) ? (
+              <div className="mt-4">
+                <p className="text-sm text-muted">Add {query.trim().toUpperCase()} yourself</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {(["stock", "etf", "crypto"] as const).map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() =>
+                        setSelected({
+                          symbol: query.trim().toUpperCase(),
+                          name: query.trim().toUpperCase(),
+                          assetType: type,
+                          exchange: null,
+                          currency: "EUR",
+                        })
+                      }
+                      className="rounded-xl border border-border px-3 py-2 text-sm"
+                    >
+                      {assetTypeLabel(type)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             <ul className="mt-4 space-y-2">
               {results.map((result) => (
                 <li key={result.symbol}>

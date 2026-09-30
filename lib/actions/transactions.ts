@@ -1,12 +1,14 @@
 "use client";
 
 import { addMonths, todayISO } from "@/lib/dates";
+import { insertLocalTransaction, deleteLocalTransaction, localAccount, readLocalPortfolio } from "@/lib/local/store";
 import { getAssetQuote } from "@/lib/market-data/marketData";
-import { MarketDataError } from "@/lib/market-data/types";
+import type { AssetType } from "@/lib/market-data/types";
 import { getAccount } from "@/lib/portfolio/account";
 import { buildPositions, PositionError, type PositionTransaction } from "@/lib/portfolio/calculations";
-import { parseTransactionForm } from "@/lib/portfolio/validation";
+import { isAssetType, parseTransactionForm } from "@/lib/portfolio/validation";
 import { createClient } from "@/lib/supabase/client";
+import { getSupabaseEnv } from "@/lib/supabase/env";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -23,36 +25,54 @@ export async function createTransaction(formData: FormData): Promise<ActionResul
   if (!parsed.ok) return parsed;
 
   try {
-    const supabase = createClient();
-    const account = await getAccount(supabase);
+    const supabase = getSupabaseEnv() ? createClient() : null;
+    const account = supabase ? await getAccount(supabase) : localAccount();
     if (!account) return { ok: false, error: "Please log in." };
 
-    let quote;
+    let quote = null;
     try {
       quote = await getAssetQuote(parsed.value.symbol);
     } catch (error) {
-      if (error instanceof MarketDataError) return { ok: false, error: error.message };
       console.error("quote", error);
-      return { ok: false, error: "Unable to load market data." };
     }
 
-    if (!quote) return { ok: false, error: "Asset not found." };
+    const requestedType = String(formData.get("assetType") ?? "");
+    const assetType: AssetType = quote?.assetType ?? (isAssetType(requestedType) ? requestedType : "stock");
+    const name = quote?.name ?? (String(formData.get("assetName") ?? "").trim() || parsed.value.symbol);
 
-    return insertTransaction(supabase, {
+    const input = {
       portfolioId: account.portfolioId,
-      symbol: quote.symbol,
-      name: quote.name,
-      assetType: quote.assetType,
-      exchange: quote.exchange,
-      assetCurrency: quote.currency,
+      symbol: quote?.symbol ?? parsed.value.symbol,
+      name,
+      assetType,
+      exchange: quote?.exchange ?? null,
+      assetCurrency: quote?.currency ?? parsed.value.currency,
       type: parsed.value.type,
       quantity: parsed.value.quantity,
       price: parsed.value.price,
       fees: parsed.value.fees,
       currency: parsed.value.currency,
       date: parsed.value.date,
-      origin: "manual",
-    });
+      origin: "manual" as const,
+    };
+
+    if (!supabase) {
+      return insertLocalTransaction({
+        symbol: input.symbol,
+        name: input.name,
+        assetType: input.assetType,
+        exchange: input.exchange,
+        type: input.type,
+        quantity: input.quantity,
+        price: input.price,
+        fees: input.fees,
+        currency: input.currency,
+        date: input.date,
+        origin: input.origin,
+      });
+    }
+
+    return insertTransaction(supabase, input);
   } catch (error) {
     console.error("createTransaction", error);
     return { ok: false, error: "Unable to save transaction." };
@@ -64,6 +84,8 @@ export async function deleteTransaction(formData: FormData): Promise<ActionResul
   if (!/^[0-9a-f-]{36}$/i.test(id)) return { ok: false, error: "Unable to save transaction." };
 
   try {
+    if (!getSupabaseEnv()) return deleteLocalTransaction(id);
+
     const supabase = createClient();
     const account = await getAccount(supabase);
     if (!account) return { ok: false, error: "Please log in." };
@@ -179,8 +201,8 @@ export async function loadSampleTransactions(): Promise<ActionResult> {
     return { ok: false, error: "Sample data is only available in development." };
   }
 
-  const supabase = createClient();
-  const account = await getAccount(supabase);
+  const supabase = getSupabaseEnv() ? createClient() : null;
+  const account = supabase ? await getAccount(supabase) : localAccount();
   if (!account) return { ok: false, error: "Please log in." };
 
   const today = todayISO();
@@ -195,29 +217,42 @@ export async function loadSampleTransactions(): Promise<ActionResult> {
   ];
 
   for (const sample of samples) {
-    let quote;
+    let quote = null;
     try {
       quote = await getAssetQuote(sample.symbol);
     } catch {
-      return { ok: false, error: "Unable to load market data." };
+      quote = null;
     }
-    if (!quote) return { ok: false, error: "Asset not found." };
 
-    const saved = await insertTransaction(supabase, {
-      portfolioId: account.portfolioId,
-      symbol: quote.symbol,
-      name: quote.name,
-      assetType: quote.assetType,
-      exchange: quote.exchange,
-      assetCurrency: quote.currency,
-      type: sample.type,
-      quantity: sample.quantity,
-      price: sample.price,
-      fees: sample.fees,
-      currency: sample.currency,
-      date: sample.date,
-      origin: "sample",
-    });
+    const saved = supabase
+      ? await insertTransaction(supabase, {
+          portfolioId: account.portfolioId,
+          symbol: quote?.symbol ?? sample.symbol,
+          name: quote?.name ?? sample.symbol,
+          assetType: quote?.assetType ?? (sample.symbol.includes("BTC") || sample.symbol.includes("ETH") ? "crypto" : sample.symbol.includes(".") ? "etf" : "stock"),
+          exchange: quote?.exchange ?? null,
+          assetCurrency: quote?.currency ?? sample.currency,
+          type: sample.type,
+          quantity: sample.quantity,
+          price: sample.price,
+          fees: sample.fees,
+          currency: sample.currency,
+          date: sample.date,
+          origin: "sample",
+        })
+      : insertLocalTransaction({
+          symbol: sample.symbol,
+          name: quote?.name ?? sample.symbol,
+          assetType: quote?.assetType ?? (sample.symbol.includes("BTC") || sample.symbol.includes("ETH") ? "crypto" : sample.symbol.includes(".") ? "etf" : "stock"),
+          exchange: quote?.exchange ?? null,
+          type: sample.type,
+          quantity: sample.quantity,
+          price: sample.price,
+          fees: sample.fees,
+          currency: sample.currency,
+          date: sample.date,
+          origin: "sample",
+        });
 
     if (!saved.ok) return saved;
   }
@@ -228,6 +263,17 @@ export async function loadSampleTransactions(): Promise<ActionResult> {
 export async function clearSampleTransactions(): Promise<ActionResult> {
   if (process.env.NODE_ENV !== "development") {
     return { ok: false, error: "Sample data is only available in development." };
+  }
+
+  if (!getSupabaseEnv()) {
+    const ordered = readLocalPortfolio()
+      .transactions.filter((row) => row.origin === "sample")
+      .sort((left, right) => (left.type === right.type ? 0 : left.type === "sell" ? -1 : 1));
+    for (const row of ordered) {
+      const deleted = deleteLocalTransaction(row.id);
+      if (!deleted.ok) return deleted;
+    }
+    return { ok: true };
   }
 
   const supabase = createClient();

@@ -95,7 +95,7 @@ export function SettingsForm({
 
       <section className="rounded-2xl border border-border bg-card p-5">
         <h2 className="font-medium">Account</h2>
-        <p className="mt-2 text-sm text-muted">{email}</p>
+        <p className="mt-2 text-sm text-muted">{email || "Saved in this browser"}</p>
         <button
           type="button"
           onClick={() => {
