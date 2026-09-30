@@ -1,6 +1,4 @@
-import "server-only";
-
-import { createClient } from "@/lib/supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type Account = {
   userId: string;
@@ -15,8 +13,7 @@ function themeOf(value: unknown): Account["theme"] {
   return value === "light" || value === "system" ? value : "dark";
 }
 
-export async function getAccount(): Promise<Account | null> {
-  const supabase = await createClient();
+export async function getAccount(supabase: SupabaseClient): Promise<Account | null> {
   const {
     data: { user },
   } = await supabase.auth.getUser();

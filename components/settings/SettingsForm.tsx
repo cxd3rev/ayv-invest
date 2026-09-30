@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
+import { usePortfolio } from "@/components/portfolio/PortfolioProvider";
 import { signOut } from "@/lib/actions/auth";
 import { updateSettings } from "@/lib/actions/settings";
 import { clearSampleTransactions, loadSampleTransactions } from "@/lib/actions/transactions";
@@ -22,6 +23,7 @@ export function SettingsForm({
   showSampleTools: boolean;
 }) {
   const router = useRouter();
+  const { reload } = usePortfolio();
   const { setTheme } = useTheme();
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -43,7 +45,7 @@ export function SettingsForm({
     const nextTheme = String(formData.get("theme") ?? "dark");
     if (nextTheme === "dark" || nextTheme === "light" || nextTheme === "system") setTheme(nextTheme);
     setMessage("Settings saved.");
-    router.refresh();
+    reload();
   }
 
   async function runSample(action: "load" | "clear") {
@@ -56,7 +58,7 @@ export function SettingsForm({
       return;
     }
     setMessage(action === "load" ? "Sample transactions added." : "Sample transactions removed.");
-    router.refresh();
+    reload();
   }
 
   return (
@@ -94,11 +96,15 @@ export function SettingsForm({
       <section className="rounded-2xl border border-border bg-card p-5">
         <h2 className="font-medium">Account</h2>
         <p className="mt-2 text-sm text-muted">{email}</p>
-        <form action={signOut} className="mt-4">
-          <button type="submit" className="rounded-xl border border-border px-4 py-2.5 text-sm">
-            Log out
-          </button>
-        </form>
+        <button
+          type="button"
+          onClick={() => {
+            void signOut().then(() => router.push("/login"));
+          }}
+          className="mt-4 rounded-xl border border-border px-4 py-2.5 text-sm"
+        >
+          Log out
+        </button>
       </section>
 
       {showSampleTools ? (

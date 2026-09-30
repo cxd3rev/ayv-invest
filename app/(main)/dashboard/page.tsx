@@ -1,3 +1,5 @@
+"use client";
+
 import { AddInvestmentButton } from "@/components/portfolio/AddInvestmentModal";
 import { AllocationChart } from "@/components/portfolio/AllocationChart";
 import { Greeting } from "@/components/dashboard/Greeting";
@@ -8,15 +10,12 @@ import { RecentTransactions } from "@/components/portfolio/TransactionTable";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Notice } from "@/components/ui/Notice";
 import { formatMoney } from "@/lib/format";
-import { loadPortfolio } from "@/lib/portfolio/load";
+import { PortfolioBody } from "@/components/portfolio/PortfolioProvider";
 
-export default async function DashboardPage() {
-  const result = await loadPortfolio();
-  if (!result.ok) return <Notice>{result.message}</Notice>;
-
-  const { view } = result;
-
+export default function DashboardPage() {
   return (
+    <PortfolioBody>
+      {(view) => (
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
@@ -69,5 +68,7 @@ export default async function DashboardPage() {
         </>
       )}
     </div>
+      )}
+    </PortfolioBody>
   );
 }

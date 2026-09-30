@@ -1,23 +1,15 @@
-"use server";
+"use client";
 
-import { revalidatePath } from "next/cache";
 import { addMonths, todayISO } from "@/lib/dates";
 import { getAssetQuote } from "@/lib/market-data/marketData";
 import { MarketDataError } from "@/lib/market-data/types";
 import { getAccount } from "@/lib/portfolio/account";
 import { buildPositions, PositionError, type PositionTransaction } from "@/lib/portfolio/calculations";
 import { parseTransactionForm } from "@/lib/portfolio/validation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/client";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
-
-function revalidatePortfolio() {
-  revalidatePath("/dashboard");
-  revalidatePath("/portfolio");
-  revalidatePath("/transactions");
-  revalidatePath("/analytics");
-  revalidatePath("/assets");
-}
 
 function friendlyDatabaseError(error: { message?: string }) {
   if (error.message?.includes("SELL_EXCEEDS_POSITION")) {
@@ -31,7 +23,8 @@ export async function createTransaction(formData: FormData): Promise<ActionResul
   if (!parsed.ok) return parsed;
 
   try {
-    const account = await getAccount();
+    const supabase = createClient();
+    const account = await getAccount(supabase);
     if (!account) return { ok: false, error: "Please log in." };
 
     let quote;
@@ -45,7 +38,7 @@ export async function createTransaction(formData: FormData): Promise<ActionResul
 
     if (!quote) return { ok: false, error: "Asset not found." };
 
-    const saved = await insertTransaction({
+    return insertTransaction(supabase, {
       portfolioId: account.portfolioId,
       symbol: quote.symbol,
       name: quote.name,
@@ -60,10 +53,6 @@ export async function createTransaction(formData: FormData): Promise<ActionResul
       date: parsed.value.date,
       origin: "manual",
     });
-
-    if (!saved.ok) return saved;
-    revalidatePortfolio();
-    return { ok: true };
   } catch (error) {
     console.error("createTransaction", error);
     return { ok: false, error: "Unable to save transaction." };
@@ -75,9 +64,9 @@ export async function deleteTransaction(formData: FormData): Promise<ActionResul
   if (!/^[0-9a-f-]{36}$/i.test(id)) return { ok: false, error: "Unable to save transaction." };
 
   try {
-    const account = await getAccount();
+    const supabase = createClient();
+    const account = await getAccount(supabase);
     if (!account) return { ok: false, error: "Please log in." };
-    const supabase = await createClient();
     const { error } = await supabase
       .from("transactions")
       .delete()
@@ -89,7 +78,6 @@ export async function deleteTransaction(formData: FormData): Promise<ActionResul
       return { ok: false, error: friendlyDatabaseError(error) };
     }
 
-    revalidatePortfolio();
     return { ok: true };
   } catch (error) {
     console.error("deleteTransaction", error);
@@ -113,8 +101,7 @@ type InsertInput = {
   origin: "manual" | "sample";
 };
 
-async function insertTransaction(input: InsertInput): Promise<ActionResult> {
-  const supabase = await createClient();
+async function insertTransaction(supabase: SupabaseClient, input: InsertInput): Promise<ActionResult> {
   const { data: assetId, error: assetError } = await supabase.rpc("upsert_asset", {
     p_symbol: input.symbol,
     p_name: input.name,
@@ -192,7 +179,8 @@ export async function loadSampleTransactions(): Promise<ActionResult> {
     return { ok: false, error: "Sample data is only available in development." };
   }
 
-  const account = await getAccount();
+  const supabase = createClient();
+  const account = await getAccount(supabase);
   if (!account) return { ok: false, error: "Please log in." };
 
   const today = todayISO();
@@ -215,7 +203,7 @@ export async function loadSampleTransactions(): Promise<ActionResult> {
     }
     if (!quote) return { ok: false, error: "Asset not found." };
 
-    const saved = await insertTransaction({
+    const saved = await insertTransaction(supabase, {
       portfolioId: account.portfolioId,
       symbol: quote.symbol,
       name: quote.name,
@@ -234,7 +222,6 @@ export async function loadSampleTransactions(): Promise<ActionResult> {
     if (!saved.ok) return saved;
   }
 
-  revalidatePortfolio();
   return { ok: true };
 }
 
@@ -243,9 +230,9 @@ export async function clearSampleTransactions(): Promise<ActionResult> {
     return { ok: false, error: "Sample data is only available in development." };
   }
 
-  const account = await getAccount();
+  const supabase = createClient();
+  const account = await getAccount(supabase);
   if (!account) return { ok: false, error: "Please log in." };
-  const supabase = await createClient();
   const { data, error } = await supabase
     .from("transactions")
     .select("id, transaction_type")
@@ -263,6 +250,5 @@ export async function clearSampleTransactions(): Promise<ActionResult> {
     if (deleted.error) return { ok: false, error: "You cannot sell more than you own." };
   }
 
-  revalidatePortfolio();
   return { ok: true };
 }

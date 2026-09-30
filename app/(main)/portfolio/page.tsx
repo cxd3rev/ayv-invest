@@ -1,17 +1,17 @@
+"use client";
+
 import { AddInvestmentButton } from "@/components/portfolio/AddInvestmentModal";
 import { HoldingsTable } from "@/components/portfolio/HoldingsTable";
 import { Money, SignedMoney } from "@/components/portfolio/Money";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Notice } from "@/components/ui/Notice";
 import { formatMoney, formatPercent } from "@/lib/format";
-import { loadPortfolio } from "@/lib/portfolio/load";
+import { PortfolioBody } from "@/components/portfolio/PortfolioProvider";
 
-export default async function PortfolioPage() {
-  const result = await loadPortfolio();
-  if (!result.ok) return <Notice>{result.message}</Notice>;
-  const { view } = result;
-
+export default function PortfolioPage() {
   return (
+    <PortfolioBody>
+      {(view) => (
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
@@ -58,5 +58,7 @@ export default async function PortfolioPage() {
         </>
       )}
     </div>
+      )}
+    </PortfolioBody>
   );
 }

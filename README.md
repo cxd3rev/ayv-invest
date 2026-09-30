@@ -100,19 +100,19 @@ In development, Settings includes buttons to load and remove sample transactions
 
 ## Market data
 
-Search, quotes, and history are requested from server route handlers. The browser never calls the market-data host directly. Results are cached for a short time (quotes about two minutes, daily history about an hour). Prices are not polled every second.
+Search, quotes, and history come from the market-data service. On a normal Next.js server, the browser calls a same-origin proxy so Yahoo Finance can be reached without a public API key. The published GitHub Pages site has no server, so the browser calls the provider directly. Yahoo does not allow that from another website, and the screen says market data could not be loaded. Frankfurter exchange rates can still load. Prices are not invented.
 
-The interface is `searchAssets`, `getAssetQuote`, `getAssetQuotes`, `getHistoricalPrices`, and `getExchangeRateSeries`. Yahoo's endpoints are unofficial and can change. If they fail, the screen says that market data could not be loaded.
+The interface is `searchAssets`, `getAssetQuote`, `getAssetQuotes`, `getHistoricalPrices`, and `getExchangeRateSeries`. Yahoo's endpoints are unofficial and can change.
 
 Market data may be delayed. The product does not claim the prices are real-time.
 
 ## Deployment
 
-Deploy the Next.js app to Vercel. Set the same environment variables in the Vercel project. Add the production URL to Supabase Auth redirect URLs, including `/auth/callback`.
+GitHub Pages publishes the site at [https://cxd3rev.github.io/ayv-invest/](https://cxd3rev.github.io/ayv-invest/). A push to `main` builds a static export and deploys the `out` folder. The public homepage is a normal HTML page, with `robots.txt` and `sitemap.xml`, so a search engine can request it. Search engines decide if and when they list it.
 
-Run the SQL migration on the production Supabase project before inviting users.
+Sign-in still needs your Supabase project. Add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` as GitHub Actions variables, then push again so the build can include them. Add `https://cxd3rev.github.io/ayv-invest/auth/callback/` to the Supabase Auth redirect URLs. Run the SQL migration before inviting users. Do not add the service-role key.
 
-GitHub Pages cannot host AYV Invest. Pages only publishes static files. This app needs a server for accounts, transactions, and live prices. The Pages workflow that forces a static export fails on routes such as `/api/market/quote`. Use Vercel for the live site. GitHub remains the place for the source code.
+The same app can run as a server with `npm run dev` or on Vercel. Leave `GITHUB_PAGES` unset for that build. Set the same public environment variables there.
 
 ## GitHub
 

@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { AddInvestmentButton } from "@/components/portfolio/AddInvestmentModal";
 import { assetTypeLabel, formatMoney, formatPercent, formatShortDate, formatSignedMoney } from "@/lib/format";
+import { addMonths, todayISO } from "@/lib/dates";
+import { getAssetQuote, getHistoricalPrices, searchAssets } from "@/lib/market-data/marketData";
 import { Skeleton } from "@/components/ui/Skeleton";
 
 type SearchResult = {
@@ -40,57 +42,55 @@ export function AssetExplorer() {
   useEffect(() => {
     const trimmed = query.trim();
     if (trimmed.length < 1) return;
-    const controller = new AbortController();
+    let cancelled = false;
     const timer = window.setTimeout(() => {
       setSearching(true);
       setError(null);
-      fetch(`/api/market/search?q=${encodeURIComponent(trimmed)}`, { signal: controller.signal })
-        .then(async (response) => {
-          const body = (await response.json()) as { results?: SearchResult[]; error?: string };
-          if (!response.ok) throw new Error(body.error || "Unable to load market data.");
-          setResults(body.results ?? []);
+      searchAssets(trimmed)
+        .then((nextResults) => {
+          if (!cancelled) setResults(nextResults);
         })
-        .catch((fetchError: unknown) => {
-          if (fetchError instanceof DOMException && fetchError.name === "AbortError") return;
-          setError("Unable to load market data.");
+        .catch(() => {
+          if (!cancelled) setError("Unable to load market data.");
         })
-        .finally(() => setSearching(false));
+        .finally(() => {
+          if (!cancelled) setSearching(false);
+        });
     }, 300);
     return () => {
-      controller.abort();
+      cancelled = true;
       window.clearTimeout(timer);
     };
   }, [query]);
 
   useEffect(() => {
     if (!selected) return;
-    const controller = new AbortController();
+    let cancelled = false;
     const timer = window.setTimeout(() => {
       setLoadingDetail(true);
       setQuote(null);
       setPoints(null);
+      const today = todayISO();
       Promise.all([
-        fetch(`/api/market/quote?symbol=${encodeURIComponent(selected)}`, { signal: controller.signal }).then((response) => response.json()),
-        fetch(`/api/market/history?symbol=${encodeURIComponent(selected)}`, { signal: controller.signal }).then((response) => response.json()),
+        getAssetQuote(selected),
+        getHistoricalPrices(selected, { interval: "1d", from: addMonths(today, -6), to: today }),
       ])
-        .then(([quoteBody, historyBody]: [{ quote?: Quote; error?: string }, { points?: { time: string; close: number }[]; error?: string }]) => {
-          if (!quoteBody.quote) throw new Error(quoteBody.error || "Asset not found.");
-          setQuote(quoteBody.quote);
-          setPoints(
-            (historyBody.points ?? []).map((point) => ({
-              date: point.time,
-              value: point.close,
-            })),
-          );
+        .then(([nextQuote, bars]) => {
+          if (cancelled) return;
+          if (!nextQuote) throw new Error("Asset not found.");
+          setQuote(nextQuote);
+          setPoints(bars.map((point) => ({ date: point.time, value: point.close })));
         })
         .catch((fetchError: unknown) => {
-          if (fetchError instanceof DOMException && fetchError.name === "AbortError") return;
+          if (cancelled) return;
           setError(fetchError instanceof Error && fetchError.message === "Asset not found." ? "Asset not found." : "Unable to load market data.");
         })
-        .finally(() => setLoadingDetail(false));
+        .finally(() => {
+          if (!cancelled) setLoadingDetail(false);
+        });
     }, 0);
     return () => {
-      controller.abort();
+      cancelled = true;
       window.clearTimeout(timer);
     };
   }, [selected]);

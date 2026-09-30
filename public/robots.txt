@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://cxd3rev.github.io/ayv-invest/sitemap.xml

@@ -1,5 +1,4 @@
-import "server-only";
-
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { addDays, eachDay, todayISO } from "@/lib/dates";
 import { latestRate, rateOn } from "@/lib/market-data/fx";
 import { getAssetQuote, getExchangeRateSeries, getHistoricalPrices } from "@/lib/market-data/marketData";
@@ -7,13 +6,13 @@ import { buildPortfolioHistory, quantityAt } from "@/lib/portfolio/calculations"
 import { getStoredPortfolio } from "@/lib/portfolio/load";
 import { isHistoryRange, rangeStart, type HistoryRange } from "@/lib/portfolio/ranges";
 
-export async function getPortfolioHistory(rangeInput: string) {
+export async function getPortfolioHistory(supabase: SupabaseClient, rangeInput: string) {
   if (!isHistoryRange(rangeInput)) {
     return { ok: false as const, message: "Choose a valid time range." };
   }
 
   try {
-    const portfolio = await getStoredPortfolio();
+    const portfolio = await getStoredPortfolio(supabase);
     if (!portfolio) return { ok: false as const, message: "Please log in." };
     if (portfolio.stored.length === 0) {
       return { ok: true as const, points: [], incomplete: false, warning: null };

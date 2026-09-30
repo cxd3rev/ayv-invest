@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { signIn, signUp, type AuthResult } from "@/lib/actions/auth";
 
@@ -8,6 +9,7 @@ const fieldClass =
   "w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none transition-colors placeholder:text-muted/70 focus:border-accent";
 
 export function AuthForm({ mode }: { mode: "login" | "signup" }) {
+  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -31,7 +33,10 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
     if (result && "message" in result) {
       setMessage(result.message);
       setPending(false);
+      return;
     }
+
+    router.push("/dashboard");
   }
 
   return (

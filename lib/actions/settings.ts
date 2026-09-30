@@ -1,8 +1,7 @@
-"use server";
+"use client";
 
-import { revalidatePath } from "next/cache";
 import { getAccount } from "@/lib/portfolio/account";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/client";
 
 export type SettingsResult = { ok: true } | { ok: false; error: string };
 
@@ -24,9 +23,9 @@ export async function updateSettings(formData: FormData): Promise<SettingsResult
   }
 
   try {
-    const account = await getAccount();
+    const supabase = createClient();
+    const account = await getAccount(supabase);
     if (!account) return { ok: false, error: "Please log in." };
-    const supabase = await createClient();
 
     const profile = await supabase
       .from("profiles")
@@ -48,8 +47,6 @@ export async function updateSettings(formData: FormData): Promise<SettingsResult
       return { ok: false, error: "Unable to save your settings." };
     }
 
-    revalidatePath("/settings");
-    revalidatePath("/dashboard");
     return { ok: true };
   } catch (error) {
     console.error("updateSettings", error);

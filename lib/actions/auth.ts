@@ -1,25 +1,21 @@
-"use server";
+"use client";
 
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/client";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 
-export type AuthResult = { error: string } | { message: string };
+export type AuthResult = { error: string } | { message: string } | { ok: true };
 
 function cleanEmail(value: FormDataEntryValue | null) {
   return String(value ?? "").trim().toLowerCase();
 }
 
-async function siteOrigin() {
-  const headerStore = await headers();
-  const host = headerStore.get("x-forwarded-host") ?? headerStore.get("host");
-  const proto = headerStore.get("x-forwarded-proto") ?? "http";
-  if (!host) return null;
-  return `${proto}://${host}`;
+function callbackUrl() {
+  const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+  const slash = process.env.NEXT_PUBLIC_GITHUB_PAGES === "true" ? "/" : "";
+  return `${window.location.origin}${base}/auth/callback${slash}`;
 }
 
-export async function signIn(formData: FormData): Promise<AuthResult | void> {
+export async function signIn(formData: FormData): Promise<AuthResult> {
   if (!getSupabaseEnv()) {
     return { error: "Supabase is not configured yet." };
   }
@@ -31,17 +27,17 @@ export async function signIn(formData: FormData): Promise<AuthResult | void> {
     return { error: "Enter a valid email and a password of at least 8 characters." };
   }
 
-  const supabase = await createClient();
+  const supabase = createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
     return { error: "Unable to sign in. Check your email and password." };
   }
 
-  redirect("/dashboard");
+  return { ok: true };
 }
 
-export async function signUp(formData: FormData): Promise<AuthResult | void> {
+export async function signUp(formData: FormData): Promise<AuthResult> {
   if (!getSupabaseEnv()) {
     return { error: "Supabase is not configured yet." };
   }
@@ -58,14 +54,13 @@ export async function signUp(formData: FormData): Promise<AuthResult | void> {
     return { error: "Enter a display name of up to 40 characters." };
   }
 
-  const origin = await siteOrigin();
-  const supabase = await createClient();
+  const supabase = createClient();
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: { display_name: displayName },
-      emailRedirectTo: origin ? `${origin}/auth/callback` : undefined,
+      emailRedirectTo: callbackUrl(),
     },
   });
 
@@ -84,14 +79,12 @@ export async function signUp(formData: FormData): Promise<AuthResult | void> {
     };
   }
 
-  redirect("/dashboard");
+  return { ok: true };
 }
 
 export async function signOut() {
   if (getSupabaseEnv()) {
-    const supabase = await createClient();
+    const supabase = createClient();
     await supabase.auth.signOut();
   }
-
-  redirect("/login");
 }

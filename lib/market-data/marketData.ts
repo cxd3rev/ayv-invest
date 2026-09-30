@@ -1,5 +1,3 @@
-import "server-only";
-
 import type { MarketDataProvider } from "@/lib/market-data/providers/provider";
 import { yahooProvider } from "@/lib/market-data/providers/yahoo";
 import { MarketDataError } from "@/lib/market-data/types";

@@ -1,11 +1,6 @@
-# Confirms the Next.js app builds on GitHub.
-#
-# GitHub Pages cannot host this app. Pages only serves static files, and its
-# Next.js starter turns the project into a static export. AYV Invest needs a
-# server for sign-in, transactions, and market prices, so that export fails.
-# Deploy the live site on Vercel instead.
+# Builds the static site and publishes it to GitHub Pages.
 
-name: Build AYV Invest
+name: Deploy AYV Invest
 
 on:
   push:
@@ -14,6 +9,12 @@ on:
 
 permissions:
   contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -28,5 +29,26 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Build
+      - name: Build static site
+        env:
+          GITHUB_PAGES: "true"
+          NEXT_PUBLIC_GITHUB_PAGES: "true"
+          NEXT_PUBLIC_BASE_PATH: /ayv-invest
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
         run: npm run build
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

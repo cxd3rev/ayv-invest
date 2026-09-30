@@ -13,12 +13,24 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteUrl = "https://cxd3rev.github.io/ayv-invest";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: {
     default: "AYV Invest",
     template: "%s · AYV Invest",
   },
-  description: "Personal investment portfolio tracker by AYV WRLD.",
+  description: "Personal investment portfolio tracker by AYV WRLD. Track stocks, ETFs, and crypto in euros.",
+  alternates: { canonical: "/" },
+  robots: { index: true, follow: true },
+  openGraph: {
+    title: "AYV Invest",
+    description: "Personal investment portfolio tracker by AYV WRLD.",
+    url: siteUrl,
+    siteName: "AYV Invest",
+    type: "website",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

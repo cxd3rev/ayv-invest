@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { createTransaction } from "@/lib/actions/transactions";
+import { usePortfolio } from "@/components/portfolio/PortfolioProvider";
 import { assetTypeLabel, formatMoney } from "@/lib/format";
+import { searchAssets, getAssetQuote } from "@/lib/market-data/marketData";
 import { CURRENCIES } from "@/lib/portfolio/validation";
 
 type SearchResult = {
@@ -52,7 +53,7 @@ export function AddInvestmentModal({
   onClose: () => void;
   initialAsset?: SearchResult;
 }) {
-  const router = useRouter();
+  const { reload } = usePortfolio();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -73,18 +74,22 @@ export function AddInvestmentModal({
 
   useEffect(() => {
     if (!selected) return;
-    const controller = new AbortController();
-    fetch(`/api/market/quote?symbol=${encodeURIComponent(selected.symbol)}`, { signal: controller.signal })
-      .then(async (response) => {
-        const body = (await response.json()) as { quote?: Quote; error?: string };
-        if (!response.ok || !body.quote) throw new Error(body.error || "Unable to load market data.");
-        setQuote(body.quote);
+    let cancelled = false;
+    getAssetQuote(selected.symbol)
+      .then((nextQuote) => {
+        if (cancelled) return;
+        if (!nextQuote) {
+          setQuoteError("Unable to load market data.");
+          return;
+        }
+        setQuote(nextQuote);
       })
-      .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === "AbortError") return;
-        setQuoteError("Unable to load market data.");
+      .catch(() => {
+        if (!cancelled) setQuoteError("Unable to load market data.");
       });
-    return () => controller.abort();
+    return () => {
+      cancelled = true;
+    };
   }, [selected]);
 
   useEffect(() => {
@@ -92,25 +97,24 @@ export function AddInvestmentModal({
     const trimmed = query.trim();
     if (trimmed.length < 1) return;
 
-    const controller = new AbortController();
+    let cancelled = false;
     const timer = window.setTimeout(() => {
       setSearching(true);
       setSearchError(null);
-      fetch(`/api/market/search?q=${encodeURIComponent(trimmed)}`, { signal: controller.signal })
-        .then(async (response) => {
-          const body = (await response.json()) as { results?: SearchResult[]; error?: string };
-          if (!response.ok) throw new Error(body.error || "Unable to load market data.");
-          setResults(body.results ?? []);
+      searchAssets(trimmed)
+        .then((nextResults) => {
+          if (!cancelled) setResults(nextResults);
         })
-        .catch((error: unknown) => {
-          if (error instanceof DOMException && error.name === "AbortError") return;
-          setSearchError("Unable to load market data.");
+        .catch(() => {
+          if (!cancelled) setSearchError("Unable to load market data.");
         })
-        .finally(() => setSearching(false));
+        .finally(() => {
+          if (!cancelled) setSearching(false);
+        });
     }, 300);
 
     return () => {
-      controller.abort();
+      cancelled = true;
       window.clearTimeout(timer);
     };
   }, [query, selected]);
@@ -128,7 +132,7 @@ export function AddInvestmentModal({
       setFormError(result.error);
       return;
     }
-    router.refresh();
+    reload();
     onClose();
   }
 

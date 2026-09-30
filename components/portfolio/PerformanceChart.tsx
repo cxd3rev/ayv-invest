@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { formatLongDate, formatMoney, formatShortDate } from "@/lib/format";
+import { getPortfolioHistory } from "@/lib/portfolio/history";
 import { HISTORY_RANGES, type HistoryRange } from "@/lib/portfolio/ranges";
+import { createClient } from "@/lib/supabase/client";
 import { Skeleton } from "@/components/ui/Skeleton";
 
 type Point = { date: string; value: number };
@@ -16,27 +18,33 @@ export function PerformanceChart() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const controller = new AbortController();
+    let cancelled = false;
     const timer = window.setTimeout(() => {
       setLoading(true);
       setError(null);
-      fetch(`/api/portfolio/history?range=${range}`, { signal: controller.signal })
-        .then(async (response) => {
-          const body = (await response.json()) as { points?: Point[]; warning?: string | null; error?: string };
-          if (!response.ok) throw new Error(body.error || "Unable to load market data.");
-          setPoints(body.points ?? []);
-          setWarning(body.warning ?? null);
+      getPortfolioHistory(createClient(), range)
+        .then((body) => {
+          if (cancelled) return;
+          if (!body.ok) {
+            setError(body.message);
+            setPoints([]);
+            return;
+          }
+          setPoints(body.points);
+          setWarning(body.warning);
         })
-        .catch((fetchError: unknown) => {
-          if (fetchError instanceof DOMException && fetchError.name === "AbortError") return;
+        .catch(() => {
+          if (cancelled) return;
           setError("Unable to load market data.");
           setPoints([]);
         })
-        .finally(() => setLoading(false));
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
     }, 0);
 
     return () => {
-      controller.abort();
+      cancelled = true;
       window.clearTimeout(timer);
     };
   }, [range]);

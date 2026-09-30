@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { deleteTransaction } from "@/lib/actions/transactions";
+import { usePortfolio } from "@/components/portfolio/PortfolioProvider";
 import { assetTypeLabel, formatMoney, formatQuantity, formatShortDate } from "@/lib/format";
 import type { TransactionView } from "@/lib/portfolio/types";
 
@@ -18,7 +18,7 @@ export function TransactionTable({ transactions }: { transactions: TransactionVi
   const [direction, setDirection] = useState<"asc" | "desc">("desc");
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
-  const router = useRouter();
+  const { reload } = usePortfolio();
 
   const assets = useMemo(() => {
     const names = new Map<string, string>();
@@ -50,7 +50,7 @@ export function TransactionTable({ transactions }: { transactions: TransactionVi
       setError(result.error);
       return;
     }
-    router.refresh();
+    reload();
   }
 
   return (

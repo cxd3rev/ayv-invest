@@ -6,10 +6,12 @@ const HEADERS = {
 };
 
 export async function fetchJson(url: string, revalidateSeconds: number): Promise<unknown> {
+  const onServer = typeof window === "undefined";
+  void revalidateSeconds;
+
   try {
     const response = await fetch(url, {
-      headers: HEADERS,
-      next: { revalidate: revalidateSeconds },
+      headers: onServer ? HEADERS : { Accept: "application/json" },
       signal: AbortSignal.timeout(8000),
     });
 

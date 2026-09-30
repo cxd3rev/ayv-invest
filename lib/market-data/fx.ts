@@ -1,3 +1,4 @@
+import { frankfurterUrl } from "@/lib/market-data/hosts";
 import { asNumber, asRecord, asString, fetchJson } from "@/lib/market-data/http";
 import { MarketDataError, normalizeQuotedMoney } from "@/lib/market-data/types";
 
@@ -9,8 +10,8 @@ export async function getExchangeRateSeries(fromCurrency: string, start: string,
   const to = start <= end ? end : start;
   const url =
     from === to
-      ? `https://api.frankfurter.app/${from}?from=${encodeURIComponent(currency)}&to=EUR`
-      : `https://api.frankfurter.app/${from}..${to}?from=${encodeURIComponent(currency)}&to=EUR`;
+      ? frankfurterUrl(`/${from}?from=${encodeURIComponent(currency)}&to=EUR`)
+      : frankfurterUrl(`/${from}..${to}?from=${encodeURIComponent(currency)}&to=EUR`);
 
   const payload = asRecord(await fetchJson(url, 60 * 60 * 12));
   const ratesObject = asRecord(payload?.rates);

@@ -1,4 +1,5 @@
 import { getExchangeRateSeries } from "@/lib/market-data/fx";
+import { yahooUrl } from "@/lib/market-data/hosts";
 import { asArray, asNumber, asRecord, asString, fetchJson, mapPool } from "@/lib/market-data/http";
 import type { MarketDataProvider } from "@/lib/market-data/providers/provider";
 import {
@@ -23,7 +24,7 @@ function mapAssetType(value: string | null): AssetType | null {
 }
 
 function chartUrl(symbol: string, params: string) {
-  return `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?${params}`;
+  return yahooUrl(`/v8/finance/chart/${encodeURIComponent(symbol)}?${params}`);
 }
 
 function readQuote(symbol: string, payload: unknown): AssetQuote | null {
@@ -85,7 +86,7 @@ export const yahooProvider: MarketDataProvider = {
     const trimmed = query.trim();
     if (trimmed.length < 1) return [];
 
-    const url = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(trimmed)}&quotesCount=8&newsCount=0`;
+    const url = yahooUrl(`/v1/finance/search?q=${encodeURIComponent(trimmed)}&quotesCount=8&newsCount=0`);
     const payload = asRecord(await fetchJson(url, 300));
     const results: AssetSearchResult[] = [];
 
